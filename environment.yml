@@ -1,0 +1,11 @@
+name: 1d-verifications
+dependencies:
+  - python
+  - pip:
+      - dash
+      - dash-renderer
+      - dash-core-components
+      - dash-html-components
+      - plotly
+      - numpy
+      - pandas
