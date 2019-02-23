@@ -105,7 +105,7 @@ def get_selection():
         [
             html.P("Current trial"),
             html.P(
-                "",
+                "          ",
                 id="current-output",
                 style={
                     "font-family": "monospace",
@@ -114,6 +114,9 @@ def get_selection():
                     "background-color": "grey",
                     "text-align": "center",
                 },
+            ),
+            dcc.Input(
+                id="note", placeholder="Enter a note...", type="text", value="", size=10
             ),
         ],
         className="one third columns",
@@ -135,7 +138,7 @@ def get_selection():
 
     export = html.Div(
         [
-            html.P("Export to csv", id='export-output'),
+            html.P("Export to csv", id="export-output"),
             html.Button("export", id="export", style=button_style),
         ],
         className="one column",
