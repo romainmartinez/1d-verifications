@@ -17,8 +17,10 @@ server = app.server
 app.layout = html.Div(
     [
         dcc.Store(id="trials", data={}),
-        dcc.Store(id="current", data={'id': 0}),
+        dcc.Store(id="df", data={}),
+        dcc.Store(id="current", data={"id": 0}),
         get_header(),
         get_selection(),
+        dcc.Graph(id="lines"),
     ]
 )

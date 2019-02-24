@@ -4,13 +4,15 @@ import numpy as np
 import pandas as pd
 from dash.dependencies import Input, Output, State
 
+from pyosim import Markers3dOsim
+
 from .server import app
 
 
 @app.callback(
     output=Output("trials", "data"),
     inputs=[
-        Input("read", "n_clicks_timestamp"),
+        Input("find", "n_clicks_timestamp"),
         Input("tag-1", "n_clicks_timestamp"),
         Input("tag-2", "n_clicks_timestamp"),
         Input("tag-3", "n_clicks_timestamp"),
@@ -33,7 +35,7 @@ def set_trials(read, t1, t2, t3, note_submit, project, glob, trials, current, no
         t3 = pd.to_datetime(t3, unit="ms").timestamp() if t3 else None
         btn = np.nanargmax(np.array([read, t1, t2, t3, note_submit], dtype=np.float))
         if btn == 0:
-            print("get trials...")
+            print("finding trials...")
             out = {
                 i: {"filename": f"{itrial}", "tag": 0, "note": ""}
                 for i, itrial in enumerate(Path(project).expanduser().glob(glob))
@@ -54,6 +56,35 @@ def set_trials(read, t1, t2, t3, note_submit, project, glob, trials, current, no
                 out[f'{current["id"] - 1}']["note"] = note
     else:
         out = {}
+    return out
+
+
+@app.callback(
+    output=Output("df", "data"),
+    inputs=[Input("read", "n_clicks_timestamp")],
+    state=[State("trials", "data")],
+)
+def read_data(read, trials):
+    out = {}
+    if trials:
+        print("reading files...")
+        d = (
+            pd.concat(
+                [
+                    Markers3dOsim.from_trc(trials[i]["filename"])
+                    .time_normalization()
+                    .update_misc({"filename": trials[i]["filename"].split("/")[-1]})
+                    .to_dataframe(add_metadata=["misc"])
+                    for i in trials
+                ]
+            )
+            .assign(filename=lambda x: x["filename"].astype("category"))
+            .reset_index()
+        )
+        out = {
+            "mean": d.groupby("index").mean().to_json(),
+            "std": d.groupby("index").std().to_json(),
+        }
     return out
 
 
@@ -130,7 +161,7 @@ def set_note(current, trials):
     inputs=[Input("current", "data")],
     state=[State("trials", "data")],
 )
-def set_current_color(current, trials):
+def set_progression(current, trials):
     return (
         f"{current['id']}/{len(trials)} ({current['id'] / len(trials) * 100:.2f}%)"
         if current["id"]
@@ -143,7 +174,7 @@ def set_current_color(current, trials):
     inputs=[Input("export", "n_clicks")],
     state=[State("trials", "data"), State("project", "value")],
 )
-def set_current_color(export, trials, project):
+def export_csv(export, trials, project):
     out = "Export to csv"
     if trials:
         pd.DataFrame(trials).T.assign(

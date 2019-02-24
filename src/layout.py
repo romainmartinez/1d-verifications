@@ -61,7 +61,7 @@ def get_selection():
         style=style_div,
     )
     read = html.Div(
-        [html.P("Read data"), html.Button("read", id="read", style=button_style)],
+        [html.P("Read data"), html.Button("find", id="find", style=button_style), html.Button("read", id="read", style=button_style)],
         className="one column",
         style=style_div,
     )
