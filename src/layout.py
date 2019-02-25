@@ -26,14 +26,14 @@ def get_header():
 
 def get_selection():
     style_div = {
-        "margin-top": "10",
-        "margin-bottom": "10",
-        "margin-left": "10",
-        "margin-right": "10",
+        "margin-top": "5",
+        "margin-bottom": "5",
+        "margin-left": "5",
+        "margin-right": "5",
     }
     button_style = {
         "font-family": "monospace",
-        "font-size": 18,
+        "font-size": 16,
         "color": "white",
         "background-color": "rgb(44,115,148)",
     }
@@ -41,26 +41,27 @@ def get_selection():
     input_params = dict(
         placeholder="Enter a value...",
         type="text",
+        size=25,
         style={"font-family": "monospace", "font-size": 18},
     )
     project = html.Div(
         [
             html.P("Project path"),
             dcc.Input(**input_params, id="project", value="~/Downloads/irsst"),
+            dcc.Input(
+                **input_params, id="glob", value="*/1_inverse_kinematic/*H2*.mot"
+            ),
         ],
-        className="two columns",
+        className="three columns",
         style=style_div,
     )
-    glob = html.Div(
-        [
-            html.P("Glob query"),
-            dcc.Input(**input_params, id="glob", value="*/1_inverse_kinematic/*H2*.mot"),
-        ],
-        className="two columns",
-        style=style_div,
-    )
+
     read = html.Div(
-        [html.P("Read data"), html.Button("find", id="find", style=button_style), html.Button("read", id="read", style=button_style)],
+        [
+            html.P("Read data"),
+            html.Button("find", id="find", style=button_style),
+            html.Button("read", id="read", style=button_style),
+        ],
         className="one column",
         style=style_div,
     )
@@ -68,7 +69,16 @@ def get_selection():
     column = html.Div(
         [
             html.P("Glob query"),
-            dcc.Dropdown(id="columns", multi=True),
+            dcc.Dropdown(
+                id="columns",
+                multi=True,
+                value=[
+                    "shoulder_ele",
+                    "shoulder_rotation",
+                    "elbow_flexion",
+                    "hand_r_Flex",
+                ],
+            ),
         ],
         className="two columns",
         style=style_div,
@@ -76,36 +86,45 @@ def get_selection():
 
     controls = html.Div(
         [
-            html.P("Controls", style={"text-align": "center"}),
+            html.P("Controls", id="controls-output", style={"text-align": "center"}),
+            html.Div(
+                [html.Button("export", id="export", style=button_style)],
+                style={"text-align": "center"},
+            ),
             html.Div(
                 [
-                    html.Button("←", id="previous", style=button_style),
-                    html.Button("→", id="next", style=button_style),
+                    html.Button(
+                        "← [h]", id="previous", style=button_style, accessKey="h"
+                    ),
+                    html.Button("→ [j]", id="next", style=button_style, accessKey="j"),
                 ],
                 style={"text-align": "center"},
             ),
             html.Div(
                 [
                     html.Button(
-                        "1",
+                        "1 [b]",
                         id="tag-1",
+                        accessKey="b",
                         style={**button_style, **{"background-color": "#57bb8a"}},
                     ),
                     html.Button(
-                        "2",
+                        "2 [n]",
                         id="tag-2",
+                        accessKey="n",
                         style={**button_style, **{"background-color": "#ffd666"}},
                     ),
                     html.Button(
-                        "3",
+                        "3 [m]",
                         id="tag-3",
+                        accessKey="m",
                         style={**button_style, **{"background-color": "#e67c73"}},
                     ),
                 ],
                 style={"text-align": "center"},
             ),
         ],
-        className="two columns",
+        className="three columns",
         style=style_div,
     )
 
@@ -113,46 +132,30 @@ def get_selection():
         [
             html.P("Current trial"),
             html.P(
+                "", id="progress", style={"font-family": "monospace", "font-size": 18}
+            ),
+            html.P(
                 "          ",
                 id="current-output",
                 style={
                     "font-family": "monospace",
-                    "font-size": 18,
+                    "font-size": 15,
                     "color": "white",
                     "background-color": "grey",
                     "text-align": "center",
                 },
             ),
             dcc.Input(
-                id="note", placeholder="Enter a note...", type="text", value="", size=10
-            ),
-        ],
-        className="one third columns",
-        style=style_div,
-    )
-
-    progress = html.Div(
-        [
-            html.P("Progress"),
-            html.P(
-                "23/120 (14%)",
-                id="progress",
-                style={"font-family": "monospace", "font-size": 18},
+                id="note", placeholder="Enter a note...", type="text", value="", size=25
             ),
         ],
         className="two columns",
-        style=style_div,
+        style={**style_div, **{"text-align": "center"}},
     )
+    return html.Div([project, read, column, current, controls], className="row")
 
-    export = html.Div(
-        [
-            html.P("Export to csv", id="export-output"),
-            html.Button("export", id="export", style=button_style),
-        ],
-        className="one column",
-        style=style_div,
-    )
 
-    return html.Div(
-        [project, glob, read, column, controls, current, progress, export], className="row"
-    )
+def get_graph():
+    graph = dcc.Graph(id="lines", className="eight columns")
+    warnings = dcc.Markdown("", id="warnings", className="three columns")
+    return html.Div([graph, warnings], className="row")

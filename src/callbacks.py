@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 import numpy as np
@@ -7,7 +8,7 @@ import plotly.graph_objs as go
 from plotly import tools
 from pyosim import Analogs3dOsim
 
-from .server import app
+from .server import app, rof
 
 
 @app.callback(
@@ -65,14 +66,15 @@ def set_trials(read, t1, t2, t3, note_submit, project, glob, trials, current, no
     inputs=[Input("read", "n_clicks_timestamp")],
     state=[State("trials", "data")],
 )
-def read_data(read, trials):
+def read_data(_, trials):
     out = {}
     if trials:
         print("reading files...")
+        ext = trials["1"]["filename"].split(".")[-1]
         d = (
             pd.concat(
                 [
-                    Analogs3dOsim.from_mot(trials[i]["filename"])
+                    getattr(Analogs3dOsim, f"from_{ext}")(trials[i]["filename"])
                     .time_normalization()
                     .update_misc({"filename": trials[i]["filename"].split("/")[-1]})
                     .to_dataframe(add_metadata=["misc"])
@@ -99,21 +101,81 @@ def set_dropdown_options(df):
     return out
 
 
+def read_trials_and_current(df, trials, current):
+    mu = pd.read_json(df["mean"]).sort_index()
+    sigma = pd.read_json(df["std"]).sort_index()
+    ext = trials["1"]["filename"].split(".")[-1]
+
+    current_data = (
+        getattr(Analogs3dOsim, f"from_{ext}")(
+            trials[f'{current["id"] - 1}']["filename"]
+        )
+        .time_normalization()
+        .to_dataframe()
+    )
+    return mu, sigma, current_data
+
+
+@app.callback(
+    output=Output("warnings", "children"),
+    inputs=[Input("current", "data"), Input("columns", "value")],
+    state=[State("df", "data"), State("trials", "data")],
+)
+def make_warnings(
+    current, columns, df, trials, std_threshold=15, rof_threshold=5, rof=rof
+):
+    out = ["#### Warnings", "##### Outliers"]
+    if df and columns and current and current["id"] > 0:
+        mu, sigma, current_data = read_trials_and_current(df, trials, current)
+
+        above = (current_data > mu + 3 * sigma).sum() / mu.shape[0] * 100
+        below = (current_data < mu - 3 * sigma).sum() / mu.shape[0] * 100
+
+        out.extend(
+            [
+                f"- `{icol}` > 3 std for __`{ival:.2f}%`__"
+                for icol, ival in above.loc[above > std_threshold].iteritems()
+            ]
+        )
+        out.extend(
+            [
+                f"- `{icol}` < 3 std for __`{ival:.2f}%`__"
+                for icol, ival in below.loc[below > std_threshold].iteritems()
+            ]
+        )
+        if rof:
+            out.extend(["---", "##### Limits reach"])
+            r = pd.DataFrame(rof, index=["lower", "upper"])
+            rof_above = (current_data > r.loc["upper"] - 1).sum() / mu.shape[0] * 100
+            rof_below = (current_data < r.loc["lower"] + 1).sum() / mu.shape[0] * 100
+            out.extend(
+                [
+                    f"> - `{icol}` reaches upper DoF limit for __`{ival:.2f}%`__"
+                    for icol, ival in rof_above.loc[
+                        rof_above > rof_threshold
+                    ].iteritems()
+                ]
+            )
+            out.extend(
+                [
+                    f"> - `{icol}` reaches lower DoF limit for __`{ival:.2f}%`__"
+                    for icol, ival in rof_below.loc[
+                        rof_below > rof_threshold
+                    ].iteritems()
+                ]
+            )
+    return out
+
+
 @app.callback(
     output=Output("lines", "figure"),
     inputs=[Input("current", "data"), Input("columns", "value")],
     state=[State("df", "data"), State("trials", "data")],
 )
 def make_lines(current, columns, df, trials):
-    out = dict(data={}, layout={})
+    out = dict(data=[], layout={})
     if df and columns and current and current["id"] > 0:
-        mu = pd.read_json(df["mean"]).sort_index()
-        sigma = pd.read_json(df["std"]).sort_index()
-        current_data = (
-            Analogs3dOsim.from_mot(trials[f'{current["id"] - 1}']["filename"])
-            .time_normalization()
-            .to_dataframe()
-        )
+        mu, sigma, current_data = read_trials_and_current(df, trials, current)
         out = tools.make_subplots(
             rows=2, cols=2, print_grid=False, shared_xaxes=True, shared_yaxes=True
         )
@@ -253,15 +315,13 @@ def set_progression(current, trials):
 
 
 @app.callback(
-    output=Output("export-output", "children"),
+    output=Output("controls-output", "children"),
     inputs=[Input("export", "n_clicks")],
     state=[State("trials", "data"), State("project", "value")],
 )
-def export_csv(export, trials, project):
-    out = "Export to csv"
+def export_csv(_, trials, project):
     if trials:
         pd.DataFrame(trials).T.assign(
             trial=lambda x: x["filename"].str.split("/").str[-1]
         )[["filename", "trial", "tag", "note"]].to_csv(f"{project}/verification.csv")
-        out = f"Export to csv (#{export})"
-    return out
+    return "Controls"
