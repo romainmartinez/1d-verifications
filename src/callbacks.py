@@ -18,7 +18,7 @@ from .server import app, rof
         Input("tag-1", "n_clicks_timestamp"),
         Input("tag-2", "n_clicks_timestamp"),
         Input("tag-3", "n_clicks_timestamp"),
-        Input("note", "n_submit_timestamp"),
+        Input("note", "n_blur_timestamp"),
     ],
     state=[
         State("project", "value"),
@@ -133,13 +133,13 @@ def make_warnings(
 
         out.extend(
             [
-                f"- `{icol}` > 3 std for __`{ival:.2f}%`__"
+                f"- __`{icol}`__ > 3 std for __`{ival:.2f}%`__"
                 for icol, ival in above.loc[above > std_threshold].iteritems()
             ]
         )
         out.extend(
             [
-                f"- `{icol}` < 3 std for __`{ival:.2f}%`__"
+                f"- __`{icol}`__ < 3 std for __`{ival:.2f}%`__"
                 for icol, ival in below.loc[below > std_threshold].iteritems()
             ]
         )
@@ -150,7 +150,7 @@ def make_warnings(
             rof_below = (current_data < r.loc["lower"] + 1).sum() / mu.shape[0] * 100
             out.extend(
                 [
-                    f"> - `{icol}` reaches upper DoF limit for __`{ival:.2f}%`__"
+                    f"- __`{icol}`__ reaches upper DoF limit for __`{ival:.0f}%`__"
                     for icol, ival in rof_above.loc[
                         rof_above > rof_threshold
                     ].iteritems()
@@ -158,7 +158,7 @@ def make_warnings(
             )
             out.extend(
                 [
-                    f"> - `{icol}` reaches lower DoF limit for __`{ival:.2f}%`__"
+                    f"- __`{icol}`__ reaches lower DoF limit for __`{ival:.0f}%`__"
                     for icol, ival in rof_below.loc[
                         rof_below > rof_threshold
                     ].iteritems()
@@ -177,7 +177,7 @@ def make_lines(current, columns, df, trials):
     if df and columns and current and current["id"] > 0:
         mu, sigma, current_data = read_trials_and_current(df, trials, current)
         out = tools.make_subplots(
-            rows=2, cols=2, print_grid=False, shared_xaxes=True, shared_yaxes=True
+            rows=2, cols=2, print_grid=False, shared_xaxes=True, shared_yaxes=False
         )
         pos = {0: [1, 1], 1: [1, 2], 2: [2, 1], 3: [2, 2]}
         for i, icol in enumerate(columns):
