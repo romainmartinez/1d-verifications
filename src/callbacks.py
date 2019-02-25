@@ -3,8 +3,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from dash.dependencies import Input, Output, State
-
-from pyosim import Markers3dOsim
+import plotly.graph_objs as go
+from plotly import tools
+from pyosim import Analogs3dOsim
 
 from .server import app
 
@@ -71,7 +72,7 @@ def read_data(read, trials):
         d = (
             pd.concat(
                 [
-                    Markers3dOsim.from_trc(trials[i]["filename"])
+                    Analogs3dOsim.from_mot(trials[i]["filename"])
                     .time_normalization()
                     .update_misc({"filename": trials[i]["filename"].split("/")[-1]})
                     .to_dataframe(add_metadata=["misc"])
@@ -88,6 +89,90 @@ def read_data(read, trials):
     return out
 
 
+@app.callback(output=Output("columns", "options"), inputs=[Input("df", "data")])
+def set_dropdown_options(df):
+    out = (
+        [{"label": i, "value": i} for i in pd.read_json(df["mean"])]
+        if df
+        else [{"label": "", "value": ""}]
+    )
+    return out
+
+
+@app.callback(
+    output=Output("lines", "figure"),
+    inputs=[Input("current", "data"), Input("columns", "value")],
+    state=[State("df", "data"), State("trials", "data")],
+)
+def make_lines(current, columns, df, trials):
+    out = dict(data={}, layout={})
+    if df and columns and current and current["id"] > 0:
+        mu = pd.read_json(df["mean"]).sort_index()
+        sigma = pd.read_json(df["std"]).sort_index()
+        current_data = (
+            Analogs3dOsim.from_mot(trials[f'{current["id"] - 1}']["filename"])
+            .time_normalization()
+            .to_dataframe()
+        )
+        out = tools.make_subplots(
+            rows=2, cols=2, print_grid=False, shared_xaxes=True, shared_yaxes=True
+        )
+        pos = {0: [1, 1], 1: [1, 2], 2: [2, 1], 3: [2, 2]}
+        for i, icol in enumerate(columns):
+            # lower
+            out.append_trace(
+                go.Scatter(
+                    x=mu.index,
+                    y=mu[icol] - sigma[icol],
+                    marker=dict(color="#444"),
+                    line=dict(width=0),
+                    mode="lines",
+                ),
+                row=pos[i][0],
+                col=pos[i][1],
+            )
+            # trace
+            out.append_trace(
+                go.Scatter(
+                    x=mu.index,
+                    y=mu[icol],
+                    mode="lines",
+                    line=dict(color="black"),
+                    fillcolor="rgba(68, 68, 68, 0.3)",
+                    fill="tonexty",
+                ),
+                row=pos[i][0],
+                col=pos[i][1],
+            )
+            # upper
+            out.append_trace(
+                go.Scatter(
+                    x=mu.index,
+                    y=mu[icol] + sigma[icol],
+                    mode="lines",
+                    marker=dict(color="#444"),
+                    line=dict(width=0),
+                    fillcolor="rgba(68, 68, 68, 0.3)",
+                    fill="tonexty",
+                ),
+                row=pos[i][0],
+                col=pos[i][1],
+            )
+            # current trial
+            out.append_trace(
+                go.Scatter(
+                    x=current_data.index,
+                    y=current_data[icol],
+                    mode="lines",
+                    line=dict(color="rgb(44,115,148)"),
+                ),
+                row=pos[i][0],
+                col=pos[i][1],
+            )
+        out.layout.update(dict(showlegend=False, margin=dict(l=30, r=30, b=30, t=30)))
+    return out
+
+
 @app.callback(
     output=Output("current", "data"),
     inputs=[
@@ -98,7 +183,6 @@ def read_data(read, trials):
 )
 def trial_navigation(prvs, nxt, current):
     incr = 0
-
     if nxt and not prvs:
         incr = 1
     elif prvs and not nxt:
@@ -108,7 +192,6 @@ def trial_navigation(prvs, nxt, current):
             incr = 1
         else:
             incr = -1
-
     c = current["id"] + incr
     return {"id": c if c > -1 else 0}
 

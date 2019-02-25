@@ -41,7 +41,6 @@ def get_selection():
     input_params = dict(
         placeholder="Enter a value...",
         type="text",
-        size=25,
         style={"font-family": "monospace", "font-size": 18},
     )
     project = html.Div(
@@ -55,7 +54,7 @@ def get_selection():
     glob = html.Div(
         [
             html.P("Glob query"),
-            dcc.Input(**input_params, id="glob", value="*/0_markers/*H2*.trc"),
+            dcc.Input(**input_params, id="glob", value="*/1_inverse_kinematic/*H2*.mot"),
         ],
         className="two columns",
         style=style_div,
@@ -63,6 +62,15 @@ def get_selection():
     read = html.Div(
         [html.P("Read data"), html.Button("find", id="find", style=button_style), html.Button("read", id="read", style=button_style)],
         className="one column",
+        style=style_div,
+    )
+
+    column = html.Div(
+        [
+            html.P("Glob query"),
+            dcc.Dropdown(id="columns", multi=True),
+        ],
+        className="two columns",
         style=style_div,
     )
 
@@ -146,5 +154,5 @@ def get_selection():
     )
 
     return html.Div(
-        [project, glob, read, controls, current, progress, export], className="row"
+        [project, glob, read, column, controls, current, progress, export], className="row"
     )
