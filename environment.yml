@@ -1,8 +1,8 @@
 name: 1d-verifications
 channels:
   - defaults
-  - pyomeca
   - conda-forge
+  - pyomeca
 dependencies:
   - python
   - dash
